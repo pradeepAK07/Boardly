@@ -185,18 +185,29 @@ export function useAnalysisSession() {
     return null;
   }, [enabled, current, evals, live]);
 
-  const qualityFor = useCallback(
-    (position: PositionNode): Quality | undefined => {
-      if (!game || position.ply === 0) return undefined;
-      return moveQuality(
-        evals[cacheKey(game.positions[position.ply - 1].fen)],
+  /**
+   * Every played move that already has an evaluation before and after it,
+   * keyed by the ply the move led to. Passing the before-FEN lets the
+   * classifier spot a winning sacrifice when the engine also likes the move.
+   */
+  const qualityByPly = useMemo(() => {
+    const out: Record<number, Quality> = {};
+    if (!game) return out;
+
+    for (const position of game.positions) {
+      if (position.ply === 0) continue;
+      const before = game.positions[position.ply - 1];
+      const quality = moveQuality(
+        evals[cacheKey(before.fen)],
         evals[cacheKey(position.fen)],
         position.color,
         position.uci ?? '',
+        before.fen,
       );
-    },
-    [game, evals],
-  );
+      if (quality) out[position.ply] = quality;
+    }
+    return out;
+  }, [game, evals]);
 
   const viewCheckSquare = useMemo(
     () => (enabled && current ? checkSquareFromFen(current.fen) : null),
@@ -228,7 +239,7 @@ export function useAnalysisSession() {
     analyzePosition,
     analyzeAll,
     cancel,
-    qualityFor,
+    qualityByPly,
 
     loadGame,
     open,

@@ -1,10 +1,25 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAnalysis } from './context';
 import { formatEval, uciToSan } from './engine/uci';
-import { QUALITY_GLYPH } from './classify';
+import {
+  QUALITY_GLYPH,
+  QUALITY_LABEL,
+  QUALITY_ORDER,
+  type Quality,
+} from './classify';
 import type { PositionEval, PositionNode } from './types';
-import type { Quality } from './classify';
 import './analysis.css';
+
+/** Played moves that cannot be classified yet land in their own trailing bucket. */
+type GroupKey = Quality | 'unanalysed';
+
+const GROUP_ORDER: GroupKey[] = [...QUALITY_ORDER, 'unanalysed'];
+
+const groupLabel = (key: GroupKey) =>
+  key === 'unanalysed' ? 'Not analysed' : QUALITY_LABEL[key];
+
+const groupGlyph = (key: GroupKey) =>
+  key === 'unanalysed' ? '…' : QUALITY_GLYPH[key];
 
 export function AnalysisMoveList() {
   const {
@@ -17,11 +32,13 @@ export function AnalysisMoveList() {
     goToPly,
     next,
     previous,
-    qualityFor,
+    qualityByPly,
     analyzeAll,
     cancel,
     progress,
   } = useAnalysis();
+
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Keyboard navigation. Inputs/textareas keep normal typing behaviour.
   useEffect(() => {
@@ -55,16 +72,26 @@ export function AnalysisMoveList() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [next, previous, goToPly, positions.length]);
 
-  const rows = useMemo(() => {
-    const map = new Map<number, { white?: PositionNode; black?: PositionNode }>();
+  const groups = useMemo(() => {
+    const buckets = new Map<GroupKey, PositionNode[]>();
     for (const position of positions.slice(1)) {
-      const row = map.get(position.moveNumber) ?? {};
-      if (position.color === 'w') row.white = position;
-      else row.black = position;
-      map.set(position.moveNumber, row);
+      const key: GroupKey = qualityByPly[position.ply] ?? 'unanalysed';
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(position);
+      else buckets.set(key, [position]);
     }
-    return [...map.entries()].sort(([a], [b]) => a - b);
-  }, [positions]);
+    return GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({
+      key,
+      moves: buckets.get(key) ?? [],
+    }));
+  }, [positions, qualityByPly]);
+
+  // Keep the current move visible when navigating with the keyboard or the
+  // arrow buttons. Only the move list scrolls; the header and footer stay put.
+  useEffect(() => {
+    const row = listRef.current?.querySelector<HTMLElement>('.move-item.active');
+    row?.scrollIntoView({ block: 'nearest' });
+  }, [viewIndex]);
 
   if (!game) {
     return (
@@ -82,11 +109,14 @@ export function AnalysisMoveList() {
   const currentLabel = currentEval ? formatEval(currentEval.score, current.turn) : '–';
   const currentKey = current ? current.fen.split(' ').slice(0, 4).join(' ') : '';
   const isSearching = !!live && !evals[currentKey];
+  const moveCount = Math.max(0, positions.length - 1);
 
   return (
     <aside className="move-history-panel analysis-moves">
       <div className="move-history-header">
-        <h3>Analysis</h3>
+        <h3>
+          Analysis <span className="analysis-move-count">{moveCount} moves</span>
+        </h3>
         <div className="analysis-nav">
           <button onClick={() => goToPly(0)} disabled={viewIndex === 0} title="Start position">
             ⏮
@@ -121,27 +151,30 @@ export function AnalysisMoveList() {
         {game.result && <strong>{game.result}</strong>}
       </div>
 
-      <div className="move-history-list">
-        {rows.length === 0 && <p className="no-moves">Start position only — nothing to step through.</p>}
+      <div className="move-history-list analysis-groups" ref={listRef}>
+        {groups.length === 0 && (
+          <p className="no-moves">Start position only — nothing to step through.</p>
+        )}
 
-        {rows.map(([number, row]) => (
-          <div key={number} className="move-row">
-            <span className="move-number">{number}.</span>
-            <MoveCell
-              node={row.white}
-              active={row.white?.ply === viewIndex}
-              onSelect={goToPly}
-              evals={evals}
-              qualityFor={qualityFor}
-            />
-            <MoveCell
-              node={row.black}
-              active={row.black?.ply === viewIndex}
-              onSelect={goToPly}
-              evals={evals}
-              qualityFor={qualityFor}
-            />
-          </div>
+        {groups.map(({ key, moves }) => (
+          <section className="quality-group" key={key}>
+            <header className={`quality-group__header quality-group__header--${key}`}>
+              <span className="quality-group__glyph">{groupGlyph(key)}</span>
+              <span className="quality-group__label">{groupLabel(key)}</span>
+              <span className="quality-group__count">{moves.length}</span>
+            </header>
+            <div className="quality-group__moves">
+              {moves.map((node) => (
+                <MoveRow
+                  key={node.ply}
+                  node={node}
+                  active={node.ply === viewIndex}
+                  onSelect={goToPly}
+                  evals={evals}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 
@@ -182,38 +215,33 @@ export function AnalysisMoveList() {
   );
 }
 
-function MoveCell({
+function MoveRow({
   node,
   active,
   onSelect,
   evals,
-  qualityFor,
 }: {
-  node?: PositionNode;
+  node: PositionNode;
   active: boolean;
   onSelect: (ply: number) => void;
   evals: Record<string, PositionEval>;
-  qualityFor: (position: PositionNode) => Quality | undefined;
 }) {
-  if (!node) return <span className="move-item move-item--empty" aria-hidden="true" />;
-
   const key = node.fen.split(' ').slice(0, 4).join(' ');
   const evaluation = evals[key];
-  const quality = qualityFor(node);
-  const glyph = quality ? QUALITY_GLYPH[quality] : '';
+  const number = node.color === 'w' ? `${node.moveNumber}.` : `${node.moveNumber}…`;
 
   return (
     <button
-      className={`move-item move-item--analysis${active ? ' active' : ''}${quality ? ` move-item--${quality}` : ''}`}
+      className={`move-item move-item--analysis${active ? ' active' : ''}`}
       onClick={() => onSelect(node.ply)}
       aria-current={active ? 'step' : undefined}
       title={`${node.san}${evaluation ? ` · ${formatEval(evaluation.score, node.turn)}` : ''}`}
     >
+      <span className="move-item__number">{number}</span>
       <span className="move-item__san">{node.san}</span>
       {evaluation && (
         <span className="move-eval">{formatEval(evaluation.score, node.turn)}</span>
       )}
-      {glyph && <span className={`move-glyph move-glyph--${quality}`}>{glyph}</span>}
       {active && <span className="move-cursor" aria-hidden="true" />}
     </button>
   );

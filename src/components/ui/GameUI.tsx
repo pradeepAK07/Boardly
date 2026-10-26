@@ -4,6 +4,7 @@ import { useAnalysis } from '@/analysis/context';
 import { EvalBar } from '@/analysis/EvalBar';
 import { AnalysisPanel } from '@/analysis/AnalysisPanel';
 import { AnalysisMoveList } from '@/analysis/AnalysisMoveList';
+import { ThemeSettings } from './ThemeSettings';
 import { formatEval } from '@/analysis/engine/uci';
 import { PromotionModal } from './PromotionModal';
 import { MoveHistory } from './MoveHistory';
@@ -126,6 +127,7 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
       <main className="game-main">
         {/* Left side panel - Captured pieces & AI controls */}
         <aside className="side-panel left-panel">
+          <ThemeSettings />
           {analysisActive ? (
             <>
               <AnalysisPanel currentFen={fen} />
@@ -223,7 +225,7 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
         </div>
 
         {/* Right side panel - Move History */}
-        <aside className="side-panel right-panel">
+        <aside className={`side-panel right-panel${analysisActive ? ' right-panel--analysis' : ''}`}>
           {analysisActive ? (
             <AnalysisMoveList />
           ) : (

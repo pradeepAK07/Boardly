@@ -1,6 +1,7 @@
 import { useMemo, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Environment, Lightformer, OrbitControls, Text } from '@react-three/drei';
+import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
 import { ChessBoard } from './ChessBoard';
 import { PieceManager } from './PieceManager';
 import { Table } from './Table';
@@ -8,8 +9,72 @@ import { boardToWorld } from '@/engine/boardMath';
 import { CAMERA_ELEVATION, fitCameraDistance } from '@/engine/cameraMath';
 import { useGameInteraction } from '@/engine/useGameInteraction';
 import { useAnalysis } from '@/analysis/context';
+import { useTheme } from '@/theme/context';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+/** Keeps the renderer on the filmic curve each theme was graded against. */
+function RendererSettings({ exposure }: { exposure: number }) {
+  useFrame(({ gl }) => {
+    if (gl.toneMapping !== ACESFilmicToneMapping) {
+      gl.toneMapping = ACESFilmicToneMapping;
+    }
+    if (gl.toneMappingExposure !== exposure) {
+      gl.toneMappingExposure = exposure;
+    }
+    if (gl.outputColorSpace !== SRGBColorSpace) {
+      gl.outputColorSpace = SRGBColorSpace;
+    }
+  });
+
+  return null;
+}
+
+/**
+ * Small studio rig built from emissive planes. It gives the wood and glass
+ * materials something to reflect without shipping an HDR file, and it is
+ * rebuilt (keyed) whenever the theme changes.
+ */
+function StudioEnvironment({ theme }: { theme: string }) {
+  const { palette } = useTheme();
+
+  return (
+    <Environment key={theme} resolution={256} frames={1}>
+      <Lightformer
+        form="rect"
+        color={palette.env.key.color}
+        intensity={palette.env.key.intensity}
+        position={[0, 9, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[9, 9, 1]}
+      />
+      <Lightformer
+        form="rect"
+        color={palette.env.fill.color}
+        intensity={palette.env.fill.intensity}
+        position={[-9, 4, 3]}
+        rotation={[0, Math.PI / 2, 0]}
+        scale={[7, 5, 1]}
+      />
+      <Lightformer
+        form="rect"
+        color={palette.env.rim.color}
+        intensity={palette.env.rim.intensity}
+        position={[9, 5, -5]}
+        rotation={[0, -Math.PI / 2, 0]}
+        scale={[7, 4, 1]}
+      />
+      <Lightformer
+        form="rect"
+        color={palette.env.rim.color}
+        intensity={palette.env.rim.intensity * 0.7}
+        position={[0, 4, -9]}
+        rotation={[0, 0, 0]}
+        scale={[8, 3, 1]}
+      />
+    </Environment>
+  );
+}
 
 /**
  * Pulls the camera back just far enough that the whole table fits the board
@@ -53,7 +118,19 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
     viewFen,
     viewLastMove,
     viewCheckSquare,
+    currentEval,
   } = useAnalysis();
+
+  const { palette, theme } = useTheme();
+
+  // The engine's preferred move for the viewed position. Terminal positions
+  // report no best move, so the arrow disappears on mate/stalemate.
+  const suggestedMove = useMemo(() => {
+    if (!analysisMode) return null;
+    const uci = currentEval?.bestMove;
+    if (!uci || uci.length < 4) return null;
+    return { from: uci.slice(0, 2), to: uci.slice(2, 4) };
+  }, [analysisMode, currentEval?.bestMove]);
 
   // In analysis mode the board is a read-only view of the selected ply. The
   // live game (and its legal moves) must not leak into that position.
@@ -83,7 +160,7 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
           position={[p.x, labelY, p.z]}
           rotation={rotation}
           fontSize={0.34}
-          color="#d8c7a8"
+          color={palette.labelColor}
           anchorX="center"
           anchorY="middle"
         >
@@ -100,7 +177,7 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
           position={[p.x, labelY, p.z]}
           rotation={rotation}
           fontSize={0.34}
-          color="#d8c7a8"
+          color={palette.labelColor}
           anchorX="center"
           anchorY="middle"
         >
@@ -110,26 +187,35 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
     }
 
     return out;
-  }, [boardFlipped]);
+  }, [boardFlipped, palette.labelColor]);
 
   return (
     <Canvas
-      shadows
+      shadows="soft"
       dpr={[1, 2]}
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
       style={{ height: '100%' }}
       camera={{ position: [0, 9.5, -13.5], fov: 45, near: 0.1, far: 100 }}
     >
+      <RendererSettings exposure={palette.exposure} />
       <CameraRig />
-      <color attach="background" args={['#1b1712']} />
-      <fog attach="fog" args={['#1b1712', 30, 52]} />
+      <color attach="background" args={[palette.background]} />
+      <fog attach="fog" args={[palette.fog.color, palette.fog.near, palette.fog.far]} />
 
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={['#fff6e5', '#1b1712', 0.45]} />
+      <ambientLight intensity={palette.lights.ambient} />
+      <hemisphereLight
+        args={[
+          palette.lights.hemi.sky,
+          palette.lights.hemi.ground,
+          palette.lights.hemi.intensity,
+        ]}
+      />
 
       {/* Key light (casts the shadows) */}
       <directionalLight
-        position={[7, 13, -7]}
-        intensity={1.5}
+        position={palette.lights.key.position}
+        intensity={palette.lights.key.intensity}
+        color={palette.lights.key.color}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -144,8 +230,19 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
 
       {/* Soft fill from the opposite side so black pieces do not turn into
           silhouettes. */}
-      <directionalLight position={[-8, 8, 6]} intensity={0.5} color="#cfd8ff" />
-      <pointLight position={[0, 6, -6]} intensity={18} distance={22} color="#ffcf9e" />
+      <directionalLight
+        position={palette.lights.fill.position}
+        intensity={palette.lights.fill.intensity}
+        color={palette.lights.fill.color}
+      />
+      <pointLight
+        position={palette.lights.rim.position}
+        intensity={palette.lights.rim.intensity}
+        distance={palette.lights.rim.distance}
+        color={palette.lights.rim.color}
+      />
+
+      <StudioEnvironment theme={theme} />
 
       <Table />
 
@@ -157,6 +254,7 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
           hoveredSquare={hoveredSquare}
           lastMove={currentLastMove}
           checkSquare={currentCheckSquare}
+          suggestedMove={suggestedMove}
           legalMoves={currentLegalMoves}
           onSquareClick={onSquareClick}
           onSquareHover={setHovered}
