@@ -3,6 +3,8 @@ import type { ThreeEvent } from '@react-three/fiber';
 import type { ExtrudeGeometryOptions } from 'three';
 import { Shape, Vector2 } from 'three';
 import type { ChessPieceProps } from './ChessPiece';
+import { useTheme } from '@/theme/context';
+import { getBlobShadowTexture } from '@/theme/textures';
 
 type PieceType = ChessPieceProps['type'];
 
@@ -161,12 +163,12 @@ const KNIGHT_BASE = profile([
 ]);
 
 const LATHE_ARGS: Record<PieceType, [Vector2[], number]> = {
-  p: [PAWN, 32],
-  r: [ROOK, 32],
-  b: [BISHOP, 32],
-  q: [QUEEN, 40],
-  k: [KING, 40],
-  n: [KNIGHT_BASE, 32],
+  p: [PAWN, 40],
+  r: [ROOK, 40],
+  b: [BISHOP, 44],
+  q: [QUEEN, 56],
+  k: [KING, 56],
+  n: [KNIGHT_BASE, 40],
 };
 
 const KNIGHT_DEPTH = 0.19;
@@ -196,7 +198,7 @@ const KNIGHT_EXTRUDE: ExtrudeGeometryOptions = {
   bevelThickness: 0.012,
   bevelSize: 0.014,
   bevelSegments: 2,
-  curveSegments: 16,
+  curveSegments: 24,
 };
 
 const ROOK_CRENELS = 6;
@@ -211,9 +213,9 @@ const QUEEN_POINTS = 8;
  * it actually occupies. Propagation is stopped on the wrapper group so the ray
  * cannot travel on to a tile behind the piece.
  *
- * Hover/selection feedback is a scale bump plus a colour tint, never a vertical
- * lift: lifting a selected piece is enough to hide the centre of the square
- * directly behind it, which is often the move the player wants to play.
+ * Hover/selection feedback is a scale bump plus an emissive glow, never a
+ * vertical lift: lifting a selected piece is enough to hide the centre of the
+ * square directly behind it, which is often the move the player wants to play.
  */
 export function PieceModel({
   color,
@@ -229,6 +231,7 @@ export function PieceModel({
   onPointerDown,
 }: ChessPieceProps & { position: [number, number, number] }) {
   const isWhite = color === 'w';
+  const { palette } = useTheme();
 
   const scale = useMemo(() => {
     const boost = (isHovered ? 0.05 : 0) + (isSelected ? 0.08 : 0);
@@ -257,24 +260,60 @@ export function PieceModel({
       }
     : {};
 
-  const baseColor = isWhite ? '#f4efe3' : '#2e3239';
-  const hoverColor = isWhite ? '#ffffff' : '#464c57';
-  // A colour tint is needed because emissive alone is washed out by tone
-  // mapping on the ivory pieces.
-  const selectColor = isWhite ? '#a9ebc0' : '#2f8b55';
+  const surface = isWhite ? palette.pieces.white : palette.pieces.black;
+  const highlights = palette.highlights;
 
   const material = (
-    <meshStandardMaterial
-      color={isSelected ? selectColor : isHovered ? hoverColor : baseColor}
-      roughness={isWhite ? 0.42 : 0.38}
-      metalness={isWhite ? 0.05 : 0.28}
-      emissive={isSelected ? '#155c33' : '#000000'}
-      emissiveIntensity={isSelected ? 0.3 : 0}
+    <meshPhysicalMaterial
+      color={surface.color}
+      roughness={surface.roughness}
+      metalness={surface.metalness}
+      clearcoat={surface.clearcoat}
+      clearcoatRoughness={surface.clearcoatRoughness}
+      envMapIntensity={surface.envMapIntensity}
+      transmission={surface.transmission}
+      thickness={surface.thickness}
+      ior={surface.ior}
+      attenuationColor={surface.attenuationColor}
+      attenuationDistance={surface.attenuationDistance}
+      emissive={
+        isSelected
+          ? highlights.pieceSelectEmissive
+          : isHovered
+            ? highlights.pieceHoverEmissive
+            : '#000000'
+      }
+      emissiveIntensity={
+        isSelected
+          ? highlights.pieceSelectIntensity
+          : isHovered
+            ? highlights.pieceHoverIntensity
+            : 0
+      }
     />
   );
 
+  // Keep the soft contact shadow on the board even while a piece is in flight.
+  const shadowY = position[1] - y + 0.004;
+
   return (
     <group position={[x, y, z]} scale={[scale, scale, scale]} {...interactionProps}>
+      {/* Soft contact shadow, drawn before the piece to ground it on the tile. */}
+      <mesh
+        position={[0, shadowY, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={1}
+      >
+        <planeGeometry args={[0.8, 0.8]} />
+        <meshBasicMaterial
+          map={getBlobShadowTexture()}
+          transparent
+          opacity={palette.contactShadowOpacity}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+
       {/* Turned body of every piece. */}
       <mesh castShadow receiveShadow>
         <latheGeometry args={LATHE_ARGS[type]} />

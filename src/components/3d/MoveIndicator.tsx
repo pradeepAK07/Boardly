@@ -1,5 +1,5 @@
-const MOVE_COLOR = 0x4ade80; // green - matches selection ring
-const MOVE_CAPTURE_COLOR = 0xf43f5e; // red for capture targets
+import { useTheme } from "@/theme/context";
+
 const DOT_RADIUS = 0.35; // larger
 const RING_OUTER = 0.42;
 const RING_INNER = 0.48;
@@ -13,20 +13,24 @@ type MoveIndicatorProps = {
 export function MoveIndicator({ isCapture }: MoveIndicatorProps) {
   // Since this is rendered as a child of the Tile mesh (which is already at the correct position),
   // we just need a local position offset.
-
-  const color = isCapture ? MOVE_CAPTURE_COLOR : MOVE_COLOR;
+  const { palette } = useTheme();
+  const style = isCapture
+    ? palette.highlights.legalCapture
+    : palette.highlights.legal;
+  // The wash on the tile stays subtle; the dot and ring need more presence so
+  // legal moves stay readable on both bright wood and frosted glass.
+  const dotOpacity = Math.min(0.9, style.opacity * 3);
+  const ringOpacity = Math.min(0.7, style.opacity * 2);
 
   return (
     <>
-      <mesh
-        position={[0, MARKER_Y, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <mesh position={[0, MARKER_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[DOT_RADIUS, 32]} />
         <meshBasicMaterial
-          color={color}
+          color={style.color}
           transparent
-          opacity={0.8} // more visible
+          opacity={dotOpacity}
+          depthWrite={false}
         />
       </mesh>
       <mesh
@@ -35,9 +39,10 @@ export function MoveIndicator({ isCapture }: MoveIndicatorProps) {
       >
         <ringGeometry args={[RING_OUTER, RING_INNER, 32]} />
         <meshBasicMaterial
-          color={color}
+          color={style.color}
           transparent
-          opacity={0.5} // more visible
+          opacity={ringOpacity}
+          depthWrite={false}
         />
       </mesh>
     </>
