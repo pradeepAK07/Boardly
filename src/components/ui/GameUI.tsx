@@ -8,7 +8,6 @@ import { ThemeSettings } from './ThemeSettings';
 import { formatEval } from '@/analysis/engine/uci';
 import { PromotionModal } from './PromotionModal';
 import { MoveHistory } from './MoveHistory';
-import { CapturedPieces } from './CapturedPieces';
 import { GameOverModal } from './GameOverModal';
 
 export function GameUI({ board }: { board?: React.ReactNode }) {
@@ -19,6 +18,8 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
     aiDifficulty,
     aiColor,
     boardFlipped,
+    showCaptured,
+    setShowCaptured,
     promotionMove,
     resolvePromotion,
     cancelPromotion,
@@ -35,7 +36,6 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
   const analysisPosition = analysis.current;
 
   const [showMoveHistory, setShowMoveHistory] = useState(true);
-  const [showCaptured, setShowCaptured] = useState(true);
   const [showAIControls, setShowAIControls] = useState(false);
   // Tracks the move count at which the player dismissed the game-over dialog so
   // it does not immediately reopen on the next render.
@@ -138,8 +138,6 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
             </>
           ) : (
             <>
-          {showCaptured && <CapturedPieces />}
-          
           <div className="panel-controls">
             <label>
               <input type="checkbox" checked={showCaptured} onChange={(e) => setShowCaptured(e.target.checked)} />

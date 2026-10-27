@@ -1,8 +1,14 @@
 import { useMemo, useRef, useEffect, useState } from "react";
+import type { ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as ChessModule from "chess.js";
 import { gsap } from "gsap";
+import type { Group, Mesh } from "three";
 import { ChessPiece, type PieceColor, type PieceType } from "./ChessPiece";
 import { squareToCoord, BOARD_SURFACE_Y, FILES } from "../../engine/boardMath";
+import { getBlobShadowTexture } from "@/theme/textures";
+import { useTheme } from "@/theme/context";
+import type { DragVisual } from "./usePieceDrag";
 
 export type BoardArray = Array<Array<{
   type: PieceType;
@@ -40,6 +46,10 @@ type PieceManagerProps = {
    * changes must snap rather than animate a move that may have gone backwards.
    */
   animateMoves?: boolean;
+  /** The piece being dragged is hidden here and drawn as an overlay instead. */
+  draggingFrom?: string | null;
+  dragVisual?: DragVisual | null;
+  onPiecePointerDown?: (square: string, event: ThreeEvent<PointerEvent>) => void;
   onSquareClick: (square: string) => void;
   onSquareHover: (square: string) => void;
   onSquareUnhover: () => void;
@@ -113,12 +123,59 @@ function arcPosition(
   ];
 }
 
+/**
+ * The piece follows the pointer through a ref + useFrame, so dragging does not
+ * re-render the other 63 pieces on every pointer event.
+ */
+function DraggedPiece({ visual }: { visual: DragVisual }) {
+  const groupRef = useRef<Group>(null);
+  const shadowRef = useRef<Mesh>(null);
+  const { palette } = useTheme();
+
+  useFrame(() => {
+    const p = visual.positionRef.current;
+    groupRef.current?.position.set(p.x, BOARD_SURFACE_Y + p.lift, p.z);
+    shadowRef.current?.position.set(p.x, BOARD_SURFACE_Y + 0.006, p.z);
+  });
+
+  return (
+    <>
+      <group ref={groupRef} position={[0, BOARD_SURFACE_Y + 0.3, 0]}>
+        <ChessPiece
+          color={visual.color}
+          type={visual.type}
+          position={[0, 0, 0]}
+          isDragging
+          isInteractive={false}
+          showShadow={false}
+          onPointerOver={() => {}}
+          onPointerOut={() => {}}
+          onPointerDown={() => {}}
+        />
+      </group>
+      <mesh ref={shadowRef} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+        <planeGeometry args={[0.9, 0.9]} />
+        <meshBasicMaterial
+          map={getBlobShadowTexture()}
+          transparent
+          opacity={palette.contactShadowOpacity * 0.8}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+    </>
+  );
+}
+
 export const PieceManager = ({
   fen,
   selectedSquare,
   hoveredSquare,
   lastMove,
   animateMoves = true,
+  draggingFrom,
+  dragVisual,
+  onPiecePointerDown,
   onSquareClick,
   onSquareHover,
   onSquareUnhover,
@@ -177,6 +234,7 @@ export const PieceManager = ({
       const cell = row[fileIdx];
       if (!cell) continue;
       const square = squareFromIndices(fileIdx, rankIdx);
+      if (square === draggingFrom) continue;
       const basePos = squareToCoord(square as never);
       const pos: [number, number, number] = [basePos.x, BOARD_SURFACE_Y, basePos.z];
 
@@ -207,7 +265,10 @@ export const PieceManager = ({
           isInteractive={!animatedPos}
           onPointerOver={() => onSquareHover(square)}
           onPointerOut={onSquareUnhover}
-          onPointerDown={() => onSquareClick(square)}
+          onPointerDown={(event) => {
+            if (onPiecePointerDown) onPiecePointerDown(square, event);
+            else onSquareClick(square);
+          }}
         />,
       );
     }
@@ -249,6 +310,7 @@ export const PieceManager = ({
     <>
       {pieces}
       {capturedPieceJSX}
+      {dragVisual && <DraggedPiece visual={dragVisual} />}
     </>
   );
 };

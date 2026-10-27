@@ -23,6 +23,14 @@ for (const x of [-HALF_TABLE, HALF_TABLE]) {
   }
 }
 
+// Captured-piece shelf on the left edge of the table, outside the main
+// footprint, has to stay inside the frame too.
+for (const y of [-0.9, 0.3]) {
+  for (const z of [-2.35, 2.35]) {
+    FIT_CORNERS.push([6.55, y, z]);
+  }
+}
+
 /**
  * Smallest camera distance at which the whole table still fits the viewport.
  *

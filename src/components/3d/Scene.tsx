@@ -5,6 +5,7 @@ import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
 import { ChessBoard } from './ChessBoard';
 import { PieceManager } from './PieceManager';
 import { Table } from './Table';
+import { CapturedPieces3D } from './CapturedPieces3D';
 import { boardToWorld } from '@/engine/boardMath';
 import { CAMERA_ELEVATION, fitCameraDistance } from '@/engine/cameraMath';
 import { useGameInteraction } from '@/engine/useGameInteraction';
@@ -245,6 +246,8 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
       <StudioEnvironment theme={theme} />
 
       <Table />
+
+      <CapturedPieces3D />
 
       {/* The whole board rotates 180° when flipped; camera stays put. */}
       <group rotation={[0, boardFlipped ? Math.PI : 0, 0]}>

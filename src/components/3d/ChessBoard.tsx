@@ -29,6 +29,7 @@ type TileProps = {
   isLastMove: boolean;
   isCheck: boolean;
   isSuggested: boolean;
+  isDragTarget: boolean;
   legalMoves: string[];
   boardFen: string;
   /** Wood grain variant for this square, or null for the glass theme. */
@@ -46,6 +47,7 @@ function Tile({
   isLastMove,
   isCheck,
   isSuggested,
+  isDragTarget,
   legalMoves,
   boardFen,
   texture,
@@ -97,6 +99,7 @@ function Tile({
       {isLegal && <SquareHighlight kind="legal" />}
       {isSuggested && <SquareHighlight kind="suggest" />}
       {isSelected && <SquareHighlight kind="select" />}
+      {isDragTarget && <SquareHighlight kind="drop" />}
       {isLastMove && <SquareHighlight kind="last-move" />}
       {isCheck && <SquareHighlight kind="check" />}
       {isLegal && <MoveIndicator isCapture={isCaptureTarget} />}
@@ -122,6 +125,8 @@ type ChessBoardProps = {
   /** Engine best move, shown as a blue arrow and square tints in analysis. */
   suggestedMove?: { from: string; to: string } | null;
   legalMoves: string[];
+  /** Square under the pointer while a piece is being dragged. */
+  dragTarget?: string | null;
   onSquareClick: (square: string) => void;
   onSquareHover: (square: string) => void;
   onSquareUnhover: () => void;
@@ -134,6 +139,7 @@ export function ChessBoard({
   checkSquare,
   suggestedMove,
   legalMoves,
+  dragTarget,
   onSquareClick,
   onSquareHover,
   onSquareUnhover,
@@ -191,6 +197,9 @@ export function ChessBoard({
             isLastMove={lastMoveSquares.has(square)}
             isCheck={checkSquare === square}
             isSuggested={suggestedSquares.has(square)}
+            isDragTarget={
+              dragTarget === square && legalMoves.includes(square)
+            }
             legalMoves={legalMoves}
             boardFen={fen}
             texture={texture}
@@ -202,7 +211,7 @@ export function ChessBoard({
       }
     }
     return out;
-  }, [selectedSquare, lastMoveSquares, checkSquare, suggestedSquares, legalMoves, fen, woodVariants, onSquareClick, onSquareHover, onSquareUnhover]);
+  }, [selectedSquare, lastMoveSquares, checkSquare, suggestedSquares, legalMoves, dragTarget, fen, woodVariants, onSquareClick, onSquareHover, onSquareUnhover]);
 
   // Wood keeps the bed just under the tile tops so the bevel gaps read as
   // joinery. Glass needs room below the tiles for the frosted volume to show.

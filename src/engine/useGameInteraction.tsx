@@ -5,6 +5,9 @@ import { getAIMove, type AIDifficulty } from "./chessAI";
 
 export type PromotionPiece = 'q' | 'r' | 'b' | 'n';
 
+/** Outcome of releasing a dragged piece over a square. */
+export type DropResult = 'moved' | 'promotion' | 'returned';
+
 export type InteractionState = {
   selectedSquare: string | null;
   hoveredSquare: string | null;
@@ -19,6 +22,7 @@ export type InteractionState = {
   aiDifficulty: AIDifficulty;
   aiColor: 'w' | 'b' | null;
   boardFlipped: boolean;
+  showCaptured: boolean;
 };
 
 export type InteractionActions = {
@@ -27,6 +31,7 @@ export type InteractionActions = {
   setHovered: (square: string | null) => void;
   setDragging: (dragging: boolean) => void;
   attemptMove: (from: string, to: string) => void;
+  dropOnSquare: (from: string, to: string | null) => DropResult;
   makeMove: (from: string, to: string, promotion?: string) => boolean;
   resolvePromotion: (piece: PromotionPiece) => void;
   cancelPromotion: () => void;
@@ -36,6 +41,7 @@ export type InteractionActions = {
   setAIColor: (color: 'w' | 'b' | null) => void;
   makeAIMove: () => void;
   setBoardFlipped: (flipped: boolean) => void;
+  setShowCaptured: (show: boolean) => void;
   navigateTo: (moveIndex: number) => void;
   undoMove: () => boolean;
   importPgn: (text: string) => boolean;
@@ -98,6 +104,7 @@ export function GameInteractionProvider({
   const [aiDifficulty, setAIDifficulty] = useState<AIDifficulty>('medium');
   const [aiColor, setAIColor] = useState<'w' | 'b' | null>(null);
   const [boardFlipped, setBoardFlipped] = useState(false);
+  const [showCaptured, setShowCaptured] = useState(true);
   const aiThinkingRef = useRef(false);
 
   // legalMoves computed from selectedSquare + chess state
@@ -150,6 +157,39 @@ export function GameInteractionProvider({
       setHoveredSquare(null);
     },
     [rawMakeMove],
+  );
+
+  // dropOnSquare: finish a drag. Returns what happened so the view can either
+  // keep the piece at the drop square or animate it back to its origin.
+  const dropOnSquare = useCallback(
+    (from: string, to: string | null): DropResult => {
+      setIsDragging(false);
+      if (!to || to === from) return "returned";
+
+      const piece = chess.get(from as Square);
+      if (!piece || piece.color !== metrics.turn) return "returned";
+
+      const moves = chess.moves({
+        square: from as Square,
+        verbose: true,
+      }) as MoveTarget[];
+      const target = moves.find((m) => m.to === to);
+      if (!target) return "returned";
+
+      if (target.promotion) {
+        setPromotionMove({ from, to });
+        setSelectedSquare(null);
+        setHoveredSquare(null);
+        return "promotion";
+      }
+
+      if (!rawMakeMove(from, to)) return "returned";
+      setLastMove({ from, to });
+      setSelectedSquare(null);
+      setHoveredSquare(null);
+      return "moved";
+    },
+    [chess, metrics.turn, rawMakeMove],
   );
 
   // selectSquare: set selected square, or attempt move if it's a legal target
@@ -320,11 +360,13 @@ export function GameInteractionProvider({
       aiDifficulty,
       aiColor,
       boardFlipped,
+      showCaptured,
       selectSquare,
       clearSelection,
       setHovered,
       setDragging,
       attemptMove,
+      dropOnSquare,
       makeMove,
       resolvePromotion,
       cancelPromotion,
@@ -334,6 +376,7 @@ export function GameInteractionProvider({
       setAIColor,
       makeAIMove,
       setBoardFlipped,
+      setShowCaptured,
       navigateTo,
       undoMove,
       importPgn,
@@ -352,11 +395,13 @@ export function GameInteractionProvider({
       aiDifficulty,
       aiColor,
       boardFlipped,
+      showCaptured,
       selectSquare,
       clearSelection,
       setHovered,
       setDragging,
       attemptMove,
+      dropOnSquare,
       makeMove,
       resolvePromotion,
       cancelPromotion,
@@ -366,6 +411,7 @@ export function GameInteractionProvider({
       setAIColor,
       makeAIMove,
       setBoardFlipped,
+      setShowCaptured,
       navigateTo,
       undoMove,
       importPgn,

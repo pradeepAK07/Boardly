@@ -174,6 +174,9 @@ const LATHE_ARGS: Record<PieceType, [Vector2[], number]> = {
 const KNIGHT_DEPTH = 0.19;
 const KNIGHT_Y = 0.125;
 
+/** A small global size boost: the board geometry itself stays untouched. */
+const PIECE_SCALE = 1.12;
+
 /** Horse-head silhouette (profile view), extruded across the board. */
 const KNIGHT_SHAPE = (() => {
   const shape = new Shape();
@@ -223,9 +226,11 @@ export function PieceModel({
   position,
   isHovered = false,
   isSelected = false,
+  isDragging = false,
   animatedPosition,
   animatedScale,
   isInteractive = true,
+  showShadow = true,
   onPointerOver,
   onPointerOut,
   onPointerDown,
@@ -234,9 +239,12 @@ export function PieceModel({
   const { palette } = useTheme();
 
   const scale = useMemo(() => {
-    const boost = (isHovered ? 0.05 : 0) + (isSelected ? 0.08 : 0);
-    return (1 + boost) * (animatedScale ?? 1);
-  }, [isHovered, isSelected, animatedScale]);
+    const boost =
+      (isHovered ? 0.05 : 0) +
+      (isSelected ? 0.08 : 0) +
+      (isDragging ? 0.06 : 0);
+    return PIECE_SCALE * (1 + boost) * (animatedScale ?? 1);
+  }, [isHovered, isSelected, isDragging, animatedScale]);
 
   const x = animatedPosition ? animatedPosition[0] : position[0];
   // The group origin is the base of the piece, so it sits directly on the tile.
@@ -255,7 +263,7 @@ export function PieceModel({
         },
         onPointerDown: (event: ThreeEvent<PointerEvent>) => {
           event.stopPropagation();
-          onPointerDown();
+          onPointerDown(event);
         },
       }
     : {};
@@ -279,14 +287,14 @@ export function PieceModel({
       emissive={
         isSelected
           ? highlights.pieceSelectEmissive
-          : isHovered
+          : isHovered || isDragging
             ? highlights.pieceHoverEmissive
             : '#000000'
       }
       emissiveIntensity={
         isSelected
           ? highlights.pieceSelectIntensity
-          : isHovered
+          : isHovered || isDragging
             ? highlights.pieceHoverIntensity
             : 0
       }
@@ -299,20 +307,22 @@ export function PieceModel({
   return (
     <group position={[x, y, z]} scale={[scale, scale, scale]} {...interactionProps}>
       {/* Soft contact shadow, drawn before the piece to ground it on the tile. */}
-      <mesh
-        position={[0, shadowY, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        renderOrder={1}
-      >
-        <planeGeometry args={[0.8, 0.8]} />
-        <meshBasicMaterial
-          map={getBlobShadowTexture()}
-          transparent
-          opacity={palette.contactShadowOpacity}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+      {showShadow && (
+        <mesh
+          position={[0, shadowY, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          renderOrder={1}
+        >
+          <planeGeometry args={[0.8, 0.8]} />
+          <meshBasicMaterial
+            map={getBlobShadowTexture()}
+            transparent
+            opacity={palette.contactShadowOpacity}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
 
       {/* Turned body of every piece. */}
       <mesh castShadow receiveShadow>

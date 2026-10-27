@@ -6,7 +6,7 @@ const OVERLAY_Y = 0.07;
 const WASH_Y = 0.064;
 
 type SquareHighlightProps = {
-  kind: "select" | "last-move" | "check" | "suggest" | "legal";
+  kind: "select" | "last-move" | "check" | "suggest" | "legal" | "drop";
 };
 
 export function SquareHighlight({ kind }: SquareHighlightProps) {
@@ -28,6 +28,24 @@ export function SquareHighlight({ kind }: SquareHighlightProps) {
           color={style.color}
           transparent
           opacity={style.opacity}
+          depthWrite={false}
+        />
+      </mesh>
+    );
+  }
+
+  if (kind === "drop") {
+    const style = highlights.select;
+    return (
+      <mesh
+        position={[0, OVERLAY_Y + 0.003, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.4, 0.49, 32]} />
+        <meshBasicMaterial
+          color={style.color}
+          transparent
+          opacity={Math.min(1, style.opacity + 0.15)}
           depthWrite={false}
         />
       </mesh>
