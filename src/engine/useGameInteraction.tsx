@@ -104,7 +104,8 @@ export function GameInteractionProvider({
   const [aiDifficulty, setAIDifficulty] = useState<AIDifficulty>('medium');
   const [aiColor, setAIColor] = useState<'w' | 'b' | null>(null);
   const [boardFlipped, setBoardFlipped] = useState(false);
-  const [showCaptured, setShowCaptured] = useState(true);
+  // Controls the 3D trays only; the HTML rows in the side panel are always on.
+  const [showCaptured, setShowCaptured] = useState(false);
   const aiThinkingRef = useRef(false);
 
   // legalMoves computed from selectedSquare + chess state

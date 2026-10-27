@@ -9,6 +9,7 @@ import { formatEval } from '@/analysis/engine/uci';
 import { PromotionModal } from './PromotionModal';
 import { MoveHistory } from './MoveHistory';
 import { GameOverModal } from './GameOverModal';
+import { CapturedPieces } from './CapturedPieces';
 
 export function GameUI({ board }: { board?: React.ReactNode }) {
   const { 
@@ -138,6 +139,8 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
             </>
           ) : (
             <>
+          <CapturedPieces />
+
           <div className="panel-controls">
             <label>
               <input type="checkbox" checked={showCaptured} onChange={(e) => setShowCaptured(e.target.checked)} />

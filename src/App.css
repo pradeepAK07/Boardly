@@ -570,6 +570,79 @@
   background: #333;
 }
 
+/* Captured Pieces */
+.captured-pieces-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.captured-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.captured-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.material-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.captured-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.captured-piece-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.captured-glyph {
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+}
+
+.captured-glyph.w {
+  color: #f4eee0;
+}
+
+.captured-glyph.b {
+  color: #1c1c1c;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.65));
+}
+
+.piece-count {
+  font-size: 11px;
+  color: var(--text);
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--mono);
+}
+
+.captured-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
 /* AI Controls */
 .ai-controls-panel {
   padding: 16px;
