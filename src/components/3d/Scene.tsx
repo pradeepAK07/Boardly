@@ -1,10 +1,11 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, OrbitControls, Text } from '@react-three/drei';
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
-import { ChessBoard } from './ChessBoard';
-import { PieceManager } from './PieceManager';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { BoardLayer } from './BoardLayer';
 import { Table } from './Table';
+import { CapturedPieces3D } from './CapturedPieces3D';
 import { boardToWorld } from '@/engine/boardMath';
 import { CAMERA_ELEVATION, fitCameraDistance } from '@/engine/cameraMath';
 import { useGameInteraction } from '@/engine/useGameInteraction';
@@ -108,8 +109,6 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
     lastMove,
     checkSquare,
     legalMoves,
-    selectSquare,
-    setHovered,
     metrics,
   } = useGameInteraction();
 
@@ -139,7 +138,10 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
   const currentCheckSquare = analysisMode ? viewCheckSquare : checkSquare;
   const currentLegalMoves = analysisMode ? [] : legalMoves;
   const currentSelectedSquare = analysisMode ? null : selectedSquare;
-  const onSquareClick = analysisMode ? () => {} : selectSquare;
+
+  // OrbitControls owns the camera; the drag hook disables it for the duration
+  // of a piece gesture so the view cannot drift while dragging.
+  const orbitRef = useRef<OrbitControlsImpl>(null);
 
   // Board labels live outside the rotated board group, so their positions are
   // computed with the same 180° flip applied to the pieces and tiles.
@@ -246,35 +248,26 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
 
       <Table />
 
+      <CapturedPieces3D />
+
       {/* The whole board rotates 180° when flipped; camera stays put. */}
-      <group rotation={[0, boardFlipped ? Math.PI : 0, 0]}>
-        <ChessBoard
-          fen={currentFen}
-          selectedSquare={currentSelectedSquare}
-          hoveredSquare={hoveredSquare}
-          lastMove={currentLastMove}
-          checkSquare={currentCheckSquare}
-          suggestedMove={suggestedMove}
-          legalMoves={currentLegalMoves}
-          onSquareClick={onSquareClick}
-          onSquareHover={setHovered}
-          onSquareUnhover={() => setHovered(null)}
-        />
-        <PieceManager
-          fen={currentFen}
-          selectedSquare={currentSelectedSquare}
-          hoveredSquare={hoveredSquare}
-          lastMove={currentLastMove}
-          animateMoves={!analysisMode}
-          onSquareClick={onSquareClick}
-          onSquareHover={setHovered}
-          onSquareUnhover={() => setHovered(null)}
-        />
-      </group>
+      <BoardLayer
+        fen={currentFen}
+        selectedSquare={currentSelectedSquare}
+        hoveredSquare={hoveredSquare}
+        lastMove={currentLastMove}
+        checkSquare={currentCheckSquare}
+        suggestedMove={suggestedMove}
+        legalMoves={currentLegalMoves}
+        boardFlipped={boardFlipped}
+        analysisMode={analysisMode}
+        orbitRef={orbitRef}
+      />
 
       {labels}
 
       <OrbitControls
+        ref={orbitRef}
         makeDefault
         enablePan={false}
         enableDamping

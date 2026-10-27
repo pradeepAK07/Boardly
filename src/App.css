@@ -156,6 +156,11 @@
   min-height: 0;
 }
 
+/* Pointer dragging must not scroll the page on touch devices. */
+.board-container canvas {
+  touch-action: none;
+}
+
 .side-panel {
   width: 280px;
   flex-shrink: 0;
@@ -606,11 +611,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.captured-piece-group canvas {
-  width: 28px !important;
-  height: 28px !important;
 }
 
 .captured-glyph {
