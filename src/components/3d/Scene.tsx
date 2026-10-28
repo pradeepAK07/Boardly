@@ -111,6 +111,7 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
     legalMoves,
     metrics,
   } = useGameInteraction();
+  const { inCheck, inCheckmate, inDraw, inStalemate } = metrics;
 
   const {
     enabled: analysisMode,
@@ -138,6 +139,7 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
   const currentCheckSquare = analysisMode ? viewCheckSquare : checkSquare;
   const currentLegalMoves = analysisMode ? [] : legalMoves;
   const currentSelectedSquare = analysisMode ? null : selectedSquare;
+  const turnColor = analysisMode ? null : metrics.turn;
 
   // OrbitControls owns the camera; the drag hook disables it for the duration
   // of a piece gesture so the view cannot drift while dragging.
@@ -190,6 +192,8 @@ export function GameScene({ boardFlipped = false }: { boardFlipped?: boolean }) 
 
     return out;
   }, [boardFlipped, palette.labelColor]);
+
+  const turnStatusLabel = useMemo(() => null, []);
 
   return (
     <Canvas
