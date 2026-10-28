@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { useGameInteraction } from '@/engine/useGameInteraction';
-import { useAnalysis } from '@/analysis/context';
-import { EvalBar } from '@/analysis/EvalBar';
-import { AnalysisPanel } from '@/analysis/AnalysisPanel';
-import { AnalysisMoveList } from '@/analysis/AnalysisMoveList';
-import { ThemeSettings } from './ThemeSettings';
-import { formatEval } from '@/analysis/engine/uci';
-import { PromotionModal } from './PromotionModal';
-import { MoveHistory } from './MoveHistory';
-import { GameOverModal } from './GameOverModal';
-import { CapturedPieces } from './CapturedPieces';
+import { useState } from "react";
+import { useGameInteraction } from "@/engine/useGameInteraction";
+import { useAnalysis } from "@/analysis/context";
+import { EvalBar } from "@/analysis/EvalBar";
+import { AnalysisPanel } from "@/analysis/AnalysisPanel";
+import { AnalysisMoveList } from "@/analysis/AnalysisMoveList";
+import { ThemeSettings } from "./ThemeSettings";
+import { formatEval } from "@/analysis/engine/uci";
+import { PromotionModal } from "./PromotionModal";
+import { MoveHistory } from "./MoveHistory";
+import { GameOverModal } from "./GameOverModal";
+import { CapturedPieces } from "./CapturedPieces";
 
 export function GameUI({ board }: { board?: React.ReactNode }) {
-  const { 
-    metrics, 
-    resetGame, 
+  const {
+    metrics,
+    resetGame,
     aiEnabled,
     aiDifficulty,
     aiColor,
@@ -32,7 +32,16 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
     importPgn,
   } = useGameInteraction();
   const analysis = useAnalysis();
-  const { turnLabel, fen, pgn, inCheckmate, inDraw, inStalemate, inCheck, moveCount } = metrics;
+  const {
+    turnLabel,
+    fen,
+    pgn,
+    inCheckmate,
+    inDraw,
+    inStalemate,
+    inCheck,
+    moveCount,
+  } = metrics;
   const analysisActive = analysis.enabled;
   const analysisPosition = analysis.current;
 
@@ -40,7 +49,9 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
   const [showAIControls, setShowAIControls] = useState(false);
   // Tracks the move count at which the player dismissed the game-over dialog so
   // it does not immediately reopen on the next render.
-  const [dismissedGameOverAt, setDismissedGameOverAt] = useState<number | null>(null);
+  const [dismissedGameOverAt, setDismissedGameOverAt] = useState<number | null>(
+    null,
+  );
 
   // Check for game over
   const gameEnded = inCheckmate || inDraw || inStalemate;
@@ -55,9 +66,9 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
   };
 
   const handleExportPGN = () => {
-    const blob = new Blob([pgn || fen], { type: 'application/x-chess-pgn' });
+    const blob = new Blob([pgn || fen], { type: "application/x-chess-pgn" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `chess-game-${Date.now()}.pgn`;
     a.click();
@@ -72,15 +83,18 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
         const content = event.target?.result as string;
         if (!content) return;
         try {
-          if (analysisActive) analysis.loadText(content, 'pgn');
-          else if (!importPgn(content)) window.alert('That file is not a valid PGN or FEN.');
+          if (analysisActive) analysis.loadText(content, "pgn");
+          else if (!importPgn(content))
+            window.alert("That file is not a valid PGN or FEN.");
         } catch (cause) {
-          window.alert((cause as Error).message || 'That file is not a valid PGN or FEN.');
+          window.alert(
+            (cause as Error).message || "That file is not a valid PGN or FEN.",
+          );
         }
       };
       reader.readAsText(file);
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const handleAnalyzeToggle = () => {
@@ -91,36 +105,60 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
   return (
     <>
       <header className="game-header">
-        <div className="header-left">
-          <h1>3D Chess Playground</h1>
-          <div className="game-status">
-            <span className={`turn-indicator ${metrics.turn}`}></span>
-            <span>{turnLabel} to move</span>
-            {inCheck && <span className="check-badge">⚠ Check</span>}
-            {inCheckmate && <span className="checkmate-badge">🏆 Checkmate</span>}
-            {(inDraw || inStalemate) && <span className="draw-badge">🤝 Draw</span>}
-          </div>
+        <div
+          className="header-left"
+          style={{ display: "flex", alignItems: "center", gap: "12px" }}
+        >
+          <img
+            src="/src/assets/boardly_navbar_logo.svg"
+            alt="Boardly"
+            style={{ height: "50px", width: "auto", display: "block" }}
+          />
         </div>
         <div className="header-right">
           <div className="move-counter">Move: {moveCount}</div>
           <div className="header-buttons">
-            <button onClick={handleExportPGN} className="icon-btn" title="Export PGN">📥</button>
-            <input type="file" accept=".pgn" onChange={handleImportPGN} id="pgn-import" style={{ display: 'none' }} />
-            <label htmlFor="pgn-import" className="icon-btn" title="Import PGN">📤</label>
-            <button onClick={() => setBoardFlipped(!boardFlipped)} className="icon-btn" title="Flip Board">
+            <button
+              onClick={handleExportPGN}
+              className="icon-btn"
+              title="Export PGN"
+            >
+              📥
+            </button>
+            <input
+              type="file"
+              accept=".pgn"
+              onChange={handleImportPGN}
+              id="pgn-import"
+              style={{ display: "none" }}
+            />
+            <label htmlFor="pgn-import" className="icon-btn" title="Import PGN">
+              📤
+            </label>
+            <button
+              onClick={() => setBoardFlipped(!boardFlipped)}
+              className="icon-btn"
+              title="Flip Board"
+            >
               🔄
             </button>
-            <button onClick={() => setShowAIControls(!showAIControls)} className="icon-btn" title="AI Controls">
+            <button
+              onClick={() => setShowAIControls(!showAIControls)}
+              className="icon-btn"
+              title="AI Controls"
+            >
               🤖
             </button>
             <button
               onClick={handleAnalyzeToggle}
-              className={`icon-btn${analysisActive ? ' is-active' : ''}`}
-              title={analysisActive ? 'Exit analysis' : 'Game analysis'}
+              className={`icon-btn${analysisActive ? " is-active" : ""}`}
+              title={analysisActive ? "Exit analysis" : "Game analysis"}
             >
               ♟
             </button>
-            <button onClick={handleNewGame} className="primary-btn">New Game</button>
+            <button onClick={handleNewGame} className="primary-btn">
+              New Game
+            </button>
           </div>
         </div>
       </header>
@@ -133,81 +171,99 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
             <>
               <AnalysisPanel currentFen={fen} />
               <div className="fen-display">
-                <strong>{analysisPosition ? `FEN · ply ${analysis.viewIndex}` : 'FEN'}:</strong>
+                <strong>
+                  {analysisPosition ? `FEN · ply ${analysis.viewIndex}` : "FEN"}
+                  :
+                </strong>
                 <code>{analysisPosition?.fen ?? fen}</code>
               </div>
             </>
           ) : (
             <>
-          <CapturedPieces />
+              <CapturedPieces />
 
-          <div className="panel-controls">
-            <label>
-              <input type="checkbox" checked={showCaptured} onChange={(e) => setShowCaptured(e.target.checked)} />
-              Captured Pieces
-            </label>
-          </div>
-
-          {showAIControls && (
-            <div className="ai-controls-panel">
-              <h4>AI Opponent</h4>
-              <div className="ai-control-row">
+              <div className="panel-controls">
                 <label>
-                  <input 
-                    type="checkbox" 
-                    checked={aiEnabled} 
-                    onChange={(e) => setAIEnabled(e.target.checked)} 
+                  <input
+                    type="checkbox"
+                    checked={showCaptured}
+                    onChange={(e) => setShowCaptured(e.target.checked)}
                   />
-                  Enable AI
+                  Captured Pieces
                 </label>
               </div>
-              <div className="ai-control-row">
-                <label>
-                  AI Color:
-                  <select 
-                    value={aiColor || ''} 
-                    onChange={(e) => setAIColor(e.target.value as 'w' | 'b' | null)}
-                    disabled={!aiEnabled}
-                  >
-                    <option value="">Human vs Human</option>
-                    <option value="w">AI plays White</option>
-                    <option value="b">AI plays Black</option>
-                  </select>
-                </label>
-              </div>
-              <div className="ai-control-row">
-                <label>
-                  Difficulty:
-                  <select 
-                    value={aiDifficulty} 
-                    onChange={(e) => setAIDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
-                    disabled={!aiEnabled || !aiColor}
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </label>
-              </div>
-              {aiEnabled && aiColor && metrics.turn === aiColor && (
-                <div className="ai-thinking">🤖 AI is thinking...</div>
-              )}
-              {aiEnabled && aiColor && (
-                <button 
-                  onClick={makeAIMove} 
-                  disabled={metrics.turn !== aiColor || metrics.inCheckmate || metrics.inDraw || metrics.inStalemate}
-                  className="ai-move-btn"
-                >
-                  Make AI Move
-                </button>
-              )}
-            </div>
-          )}
 
-          <div className="fen-display">
-            <strong>FEN:</strong>
-            <code>{fen}</code>
-          </div>
+              {showAIControls && (
+                <div className="ai-controls-panel">
+                  <h4>AI Opponent</h4>
+                  <div className="ai-control-row">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={aiEnabled}
+                        onChange={(e) => setAIEnabled(e.target.checked)}
+                      />
+                      Enable AI
+                    </label>
+                  </div>
+                  <div className="ai-control-row">
+                    <label>
+                      AI Color:
+                      <select
+                        value={aiColor || ""}
+                        onChange={(e) =>
+                          setAIColor(e.target.value as "w" | "b" | null)
+                        }
+                        disabled={!aiEnabled}
+                      >
+                        <option value="">Human vs Human</option>
+                        <option value="w">AI plays White</option>
+                        <option value="b">AI plays Black</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="ai-control-row">
+                    <label>
+                      Difficulty:
+                      <select
+                        value={aiDifficulty}
+                        onChange={(e) =>
+                          setAIDifficulty(
+                            e.target.value as "easy" | "medium" | "hard",
+                          )
+                        }
+                        disabled={!aiEnabled || !aiColor}
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                    </label>
+                  </div>
+                  {aiEnabled && aiColor && metrics.turn === aiColor && (
+                    <div className="ai-thinking">🤖 AI is thinking...</div>
+                  )}
+                  {aiEnabled && aiColor && (
+                    <button
+                      onClick={makeAIMove}
+                      disabled={
+                        metrics.turn !== aiColor ||
+                        metrics.inCheckmate ||
+                        metrics.inDraw ||
+                        metrics.inStalemate
+                      }
+                      className="ai-move-btn"
+                    >
+                      Make AI Move
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="fen-display">
+                <strong>FEN:</strong>
+                <code>{fen}</code>
+              </div>
             </>
           )}
         </aside>
@@ -217,7 +273,10 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
           {analysisActive && analysisPosition && analysis.currentEval && (
             <EvalBar
               whiteCp={analysis.currentEval.whiteCp}
-              label={formatEval(analysis.currentEval.score, analysisPosition.turn)}
+              label={formatEval(
+                analysis.currentEval.score,
+                analysisPosition.turn,
+              )}
               flipped={boardFlipped}
               pending={!!analysis.live}
             />
@@ -226,14 +285,20 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
         </div>
 
         {/* Right side panel - Move History */}
-        <aside className={`side-panel right-panel${analysisActive ? ' right-panel--analysis' : ''}`}>
+        <aside
+          className={`side-panel right-panel${analysisActive ? " right-panel--analysis" : ""}`}
+        >
           {analysisActive ? (
             <AnalysisMoveList />
           ) : (
             <>
               <div className="panel-header">
                 <label>
-                  <input type="checkbox" checked={showMoveHistory} onChange={(e) => setShowMoveHistory(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={showMoveHistory}
+                    onChange={(e) => setShowMoveHistory(e.target.checked)}
+                  />
                   Move History
                 </label>
               </div>
@@ -241,7 +306,6 @@ export function GameUI({ board }: { board?: React.ReactNode }) {
             </>
           )}
         </aside>
-
       </main>
 
       <PromotionModal
