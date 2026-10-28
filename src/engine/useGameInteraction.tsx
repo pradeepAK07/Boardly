@@ -2,6 +2,7 @@ import { createContext, useContext, useRef, useEffect, useState, useMemo, useCal
 import type { Chess as ChessInstance, Square } from "chess.js";
 import { useChessGame, type BoardMetrics } from "./useChessGame";
 import { getAIMove, type AIDifficulty } from "./chessAI";
+import { soundManager } from "./soundManager";
 
 export type PromotionPiece = 'q' | 'r' | 'b' | 'n';
 
@@ -136,28 +137,59 @@ export function GameInteractionProvider({
   // rendered FEN / captured pieces) stays in sync, including promotions.
   const makeMove = useCallback(
     (from: string, to: string, promotion?: string): boolean => {
+      const piece = chess.get(from as Square);
+      const isCapture = !!chess.get(to as Square);
       const success = rawMakeMove(from, to, promotion);
       if (!success) return false;
 
       setLastMove({ from, to });
       setSelectedSquare(null);
       setHoveredSquare(null);
+
+      // Play sounds
+      const inCheckNow = chess.inCheck();
+      const isCheckmateNow = chess.isCheckmate();
+      const isStalemateNow = chess.isStalemate();
+      const isDrawNow = chess.isDraw();
+      console.log('Move made:', { isCapture, inCheckNow, isCheckmateNow });
+      if (isCheckmateNow || isStalemateNow || isDrawNow) {
+        soundManager.play('game-end');
+      } else if (inCheckNow) {
+        soundManager.play('check');
+      } else if (isCapture) {
+        soundManager.play('capture');
+      } else {
+        soundManager.play('move');
+      }
+
       return true;
     },
-    [rawMakeMove],
+    [rawMakeMove, chess],
   );
 
   // attemptMove: make the move via rawMakeMove, track lastMove (for internal use)
   const attemptMove = useCallback(
     (from: string, to: string) => {
+      const piece = chess.get(from as Square);
+      const isCapture = !!chess.get(to as Square);
       const success = rawMakeMove(from, to);
       if (!success) return;
 
       setLastMove({ from, to });
       setSelectedSquare(null);
       setHoveredSquare(null);
+
+      if (chess.isCheckmate() || chess.isStalemate() || chess.isDraw()) {
+        soundManager.play('game-end');
+      } else if (chess.inCheck()) {
+        soundManager.play('check');
+      } else if (isCapture) {
+        soundManager.play('capture');
+      } else {
+        soundManager.play('move');
+      }
     },
-    [rawMakeMove],
+    [rawMakeMove, chess],
   );
 
   // dropOnSquare: finish a drag. Returns what happened so the view can either
@@ -184,10 +216,27 @@ export function GameInteractionProvider({
         return "promotion";
       }
 
+      const isCapture = !!chess.get(to as Square);
       if (!rawMakeMove(from, to)) return "returned";
       setLastMove({ from, to });
       setSelectedSquare(null);
       setHoveredSquare(null);
+
+      const inCheckNow2 = chess.inCheck();
+      const isCheckmateNow2 = chess.isCheckmate();
+      const isStalemateNow2 = chess.isStalemate();
+      const isDrawNow2 = chess.isDraw();
+      console.log('Drag move:', { isCapture, inCheckNow2, isCheckmateNow2 });
+      if (isCheckmateNow2 || isStalemateNow2 || isDrawNow2) {
+        soundManager.play('game-end');
+      } else if (inCheckNow2) {
+        soundManager.play('check');
+      } else if (isCapture) {
+        soundManager.play('capture');
+      } else {
+        soundManager.play('move');
+      }
+
       return "moved";
     },
     [chess, metrics.turn, rawMakeMove],
@@ -235,6 +284,19 @@ export function GameInteractionProvider({
         setLastMove({ ...promotionMove });
         setSelectedSquare(null);
         setHoveredSquare(null);
+
+        const inCheckNow3 = chess.inCheck();
+        const isCheckmateNow3 = chess.isCheckmate();
+        const isStalemateNow3 = chess.isStalemate();
+        const isDrawNow3 = chess.isDraw();
+        console.log('Resolve promo:', { inCheckNow3, isCheckmateNow3 });
+        if (isCheckmateNow3 || isStalemateNow3 || isDrawNow3) {
+          soundManager.play('game-end');
+        } else if (inCheckNow3) {
+          soundManager.play('check');
+        } else {
+          soundManager.play('move');
+        }
       }
       setPromotionMove(null);
     },
@@ -280,9 +342,25 @@ export function GameInteractionProvider({
         const to = moveStr.slice(2, 4);
         const promotion = moveStr.length > 4 ? moveStr[4] : undefined;
 
+        const isCapture = !!chess.get(to as Square);
         if (rawMakeMove(from, to, promotion)) {
           setLastMove({ from, to });
           setSelectedSquare(null);
+
+          const inCheckNow4 = chess.inCheck();
+          const isCheckmateNow4 = chess.isCheckmate();
+          const isStalemateNow4 = chess.isStalemate();
+          const isDrawNow4 = chess.isDraw();
+          console.log('AI move:', { isCapture, inCheckNow4, isCheckmateNow4 });
+          if (isCheckmateNow4 || isStalemateNow4 || isDrawNow4) {
+            soundManager.play('game-end');
+          } else if (inCheckNow4) {
+            soundManager.play('check');
+          } else if (isCapture) {
+            soundManager.play('capture');
+          } else {
+            soundManager.play('move');
+          }
         }
       }
       aiThinkingRef.current = false;
